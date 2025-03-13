@@ -1,0 +1,51 @@
+# Ignore virtual environment
+venv/
+env/
+fraud_env/
+*.pyc
+*.pyo
+__pycache__/
+*.swp
+.DS_Store
+
+# Ignore data files
+data/
+*.csv
+*.json
+*.xlsx
+*.parquet
+*.db
+*.sqlite
+
+# Specific large files
+transactions
+transactions.txt
+transactions.zip
+transactions.csv
+
+# Ignore model outputs
+*.pkl
+*.joblib
+*.h5
+*.onnx
+*.log
+logs/
+tensorboard_logs/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore system-specific files
+.idea/
+.vscode/
+*.iml
+
+# Ignore generated figures & plots
+figures/
+*.png
+*.jpg
+*.svg
+
+# Ignore sensitive config files
+config.json
+secrets.env

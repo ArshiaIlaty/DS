@@ -16,7 +16,6 @@ sns.set(style="whitegrid")
 plt.rcParams['figure.figsize'] = (12, 8)
 plt.rcParams['font.size'] = 12
 
-# Create necessary directories
 def create_plot_directory():
     """Create directory for saving plots"""
     plot_dir = os.path.join('results', 'plots')
@@ -37,12 +36,9 @@ def plot_transaction_amounts(df):
     # Create plot directory
     plot_dir = create_plot_directory()
     
-    # Create a copy to avoid modifying the original DataFrame
-    df_plot = df.copy()
-    
     # Basic statistics on transaction amounts
     print("\nTransaction Amount Statistics:")
-    stats = df_plot['transactionAmount'].describe().to_dict()
+    stats = df['transactionAmount'].describe().to_dict()
     for stat, value in stats.items():
         print(f"- {stat}: {value:.2f}")
     
@@ -50,21 +46,20 @@ def plot_transaction_amounts(df):
     fig, axes = plt.subplots(2, 2, figsize=(18, 12))
     
     # Histogram
-    sns.histplot(df_plot['transactionAmount'], bins=50, kde=True, ax=axes[0, 0])
+    sns.histplot(df['transactionAmount'], bins=50, kde=True, ax=axes[0, 0])
     axes[0, 0].set_title('Transaction Amount Distribution')
     axes[0, 0].set_xlabel('Transaction Amount ($)')
     axes[0, 0].set_ylabel('Frequency')
     
-
     # Log-scale histogram - filter out zeros first to avoid log(0) issues
-    non_zero_amounts = df_plot[df_plot['transactionAmount'] > 0]['transactionAmount']
+    non_zero_amounts = df[df['transactionAmount'] > 0]['transactionAmount']
     sns.histplot(non_zero_amounts, bins=50, kde=True, log_scale=True, ax=axes[0, 1])
     axes[0, 1].set_title('Transaction Amount Distribution (Log Scale)')
     axes[0, 1].set_xlabel('Transaction Amount ($)')
     axes[0, 1].set_ylabel('Frequency')
     
     # Box plot
-    sns.boxplot(y=df_plot['transactionAmount'], ax=axes[1, 0])
+    sns.boxplot(y=df['transactionAmount'], ax=axes[1, 0])
     axes[1, 0].set_title('Transaction Amount Box Plot')
     axes[1, 0].set_ylabel('Transaction Amount ($)')
     
@@ -73,13 +68,13 @@ def plot_transaction_amounts(df):
     bin_labels = ['$0-10', '$10-25', '$25-50', '$50-100', 
                  '$100-200', '$200-500', '$500-1K', '$1K+']
     
-    df_plot['AmountCategory'] = pd.cut(df_plot['transactionAmount'], 
-                                      bins=amount_bins, 
-                                      labels=bin_labels, 
-                                      right=False)
+    df['AmountCategory'] = pd.cut(df['transactionAmount'], 
+                                 bins=amount_bins, 
+                                 labels=bin_labels, 
+                                 right=False)
     
     # Count plot of transaction amount categories
-    category_counts = df_plot['AmountCategory'].value_counts().sort_index()
+    category_counts = df['AmountCategory'].value_counts().sort_index()
     axes[1, 1].bar(category_counts.index, category_counts.values)
     axes[1, 1].set_title('Transaction Amount Categories')
     axes[1, 1].set_xlabel('Amount Category')
@@ -95,14 +90,13 @@ def plot_transaction_amounts(df):
     
     # Additional analysis by merchant category
     print("\nTransaction Amount Statistics by Merchant Category:")
-    category_stats = df_plot.groupby('merchantCategoryCode')['transactionAmount'].agg(
+    category_stats = df.groupby('merchantCategoryCode')['transactionAmount'].agg(
         ['count', 'mean', 'median', 'min', 'max']).sort_values('count', ascending=False)
-    # display(category_stats)
     print(category_stats)
     
     # Plot amounts by merchant category
     plt.figure(figsize=(14, 8))
-    sns.boxplot(x='merchantCategoryCode', y='transactionAmount', data=df_plot)
+    sns.boxplot(x='merchantCategoryCode', y='transactionAmount', data=df)
     plt.title('Transaction Amounts by Merchant Category')
     plt.xlabel('Merchant Category')
     plt.ylabel('Transaction Amount ($)')
@@ -113,7 +107,7 @@ def plot_transaction_amounts(df):
     
     # Plot frequency of common transaction amounts
     plt.figure(figsize=(14, 6))
-    top_amounts = df_plot['transactionAmount'].value_counts().head(15)
+    top_amounts = df['transactionAmount'].value_counts().head(15)
     sns.barplot(x=top_amounts.index, y=top_amounts.values)
     plt.title('Most Common Transaction Amounts')
     plt.xlabel('Transaction Amount ($)')
@@ -123,15 +117,12 @@ def plot_transaction_amounts(df):
     plt.savefig(os.path.join(plot_dir, 'common_transaction_amounts.png'))
     plt.close()
     
-    # Check for interesting patterns or anomalies
     print("\nObservations about transaction amount structure:")
     print("1. The transaction amount distribution is right-skewed with many small transactions and fewer large ones")
     print("2. There appear to be certain standard/common amounts that occur frequently")
     print("3. Different merchant categories show distinct transaction amount patterns")
     print("4. There may be certain recurring subscription amounts (regular fixed payments)")
     print("5. Some merchant categories like food_delivery show very consistent transaction amounts")
-    
-    return df_plot
 
 def plot_transaction_time_patterns(df):
     """
@@ -144,25 +135,24 @@ def plot_transaction_time_patterns(df):
     plot_dir = create_plot_directory()
     
     # Ensure transaction datetime is in correct format
-    df_time = df.copy()
-    if 'transactionDateTime' in df_time.columns:
-        df_time['transactionDateTime'] = pd.to_datetime(df_time['transactionDateTime'])
+    if 'transactionDateTime' in df.columns:
+        df['transactionDateTime'] = pd.to_datetime(df['transactionDateTime'])
     else:
         print("Error: transactionDateTime column not found")
         return
     
     # Extract time components
-    df_time['txnHour'] = df_time['transactionDateTime'].dt.hour
-    df_time['txnDay'] = df_time['transactionDateTime'].dt.day
-    df_time['txnDayOfWeek'] = df_time['transactionDateTime'].dt.dayofweek
-    df_time['txnMonth'] = df_time['transactionDateTime'].dt.month
-    df_time['txnDayName'] = df_time['transactionDateTime'].dt.day_name()
+    df['txnHour'] = df['transactionDateTime'].dt.hour
+    df['txnDay'] = df['transactionDateTime'].dt.day
+    df['txnDayOfWeek'] = df['transactionDateTime'].dt.dayofweek
+    df['txnMonth'] = df['transactionDateTime'].dt.month
+    df['txnDayName'] = df['transactionDateTime'].dt.day_name()
     
     # Create visualizations
     fig, axes = plt.subplots(2, 2, figsize=(18, 12))
     
     # Transactions by hour of day
-    hour_counts = df_time['txnHour'].value_counts().sort_index()
+    hour_counts = df['txnHour'].value_counts().sort_index()
     sns.barplot(x=hour_counts.index, y=hour_counts.values, ax=axes[0, 0])
     axes[0, 0].set_title('Transactions by Hour of Day')
     axes[0, 0].set_xlabel('Hour of Day')
@@ -170,7 +160,7 @@ def plot_transaction_time_patterns(df):
     
     # Transactions by day of week
     day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    day_counts = df_time['txnDayName'].value_counts().reindex(day_order)
+    day_counts = df['txnDayName'].value_counts().reindex(day_order)
     sns.barplot(x=day_counts.index, y=day_counts.values, ax=axes[0, 1])
     axes[0, 1].set_title('Transactions by Day of Week')
     axes[0, 1].set_xlabel('Day of Week')
@@ -178,14 +168,14 @@ def plot_transaction_time_patterns(df):
     axes[0, 1].tick_params(axis='x', rotation=45)
     
     # Transactions by day of month
-    day_counts = df_time['txnDay'].value_counts().sort_index()
+    day_counts = df['txnDay'].value_counts().sort_index()
     sns.barplot(x=day_counts.index, y=day_counts.values, ax=axes[1, 0])
     axes[1, 0].set_title('Transactions by Day of Month')
     axes[1, 0].set_xlabel('Day of Month')
     axes[1, 0].set_ylabel('Number of Transactions')
     
     # Transactions by month
-    month_counts = df_time['txnMonth'].value_counts().sort_index()
+    month_counts = df['txnMonth'].value_counts().sort_index()
     sns.barplot(x=month_counts.index, y=month_counts.values, ax=axes[1, 1])
     axes[1, 1].set_title('Transactions by Month')
     axes[1, 1].set_xlabel('Month')
@@ -197,7 +187,7 @@ def plot_transaction_time_patterns(df):
     
     # Heatmap of transactions by hour and day of week
     pivot_table = pd.pivot_table(
-        df_time, 
+        df, 
         values='transactionAmount',
         index='txnDayName', 
         columns='txnHour',
@@ -221,8 +211,6 @@ def plot_transaction_time_patterns(df):
     print("2. There are day-of-week patterns with higher transaction volumes on weekdays/weekends")
     print("3. Certain days of the month show higher transaction activity")
     print("4. Seasonal patterns may be visible in the monthly data")
-    
-    return df_time
 
 def plot_fraud_analysis(df):
     """
@@ -239,18 +227,15 @@ def plot_fraud_analysis(df):
         print("Error: isFraud column not found in the data")
         return
     
-    # Make a copy to avoid modifying the original
-    df_fraud = df.copy()
-    
     # Ensure fraud is boolean
-    df_fraud['isFraud'] = df_fraud['isFraud'].astype(bool)
+    df['isFraud'] = df['isFraud'].astype(bool)
     
     # Create figure for fraud analysis
     fig, axes = plt.subplots(2, 2, figsize=(18, 12))
     
     # Fraud distribution
-    fraud_counts = df_fraud['isFraud'].value_counts()
-    fraud_pct = fraud_counts / len(df_fraud) * 100
+    fraud_counts = df['isFraud'].value_counts()
+    fraud_pct = fraud_counts / len(df) * 100
     
     axes[0, 0].bar(['Legitimate', 'Fraudulent'], [fraud_counts[False], fraud_counts[True]])
     axes[0, 0].set_title('Distribution of Legitimate vs Fraudulent Transactions')
@@ -260,13 +245,13 @@ def plot_fraud_analysis(df):
         axes[0, 0].text(i, v + 5, f'{v} ({fraud_pct[i==1]:.2f}%)', ha='center')
     
     # Transaction amount by fraud
-    sns.boxplot(x='isFraud', y='transactionAmount', data=df_fraud, ax=axes[0, 1])
+    sns.boxplot(x='isFraud', y='transactionAmount', data=df, ax=axes[0, 1])
     axes[0, 1].set_title('Transaction Amount by Fraud Status')
     axes[0, 1].set_xlabel('Is Fraud')
     axes[0, 1].set_ylabel('Transaction Amount ($)')
     
     # Fraud by merchant category
-    fraud_by_category = df_fraud.groupby('merchantCategoryCode')['isFraud'].mean() * 100
+    fraud_by_category = df.groupby('merchantCategoryCode')['isFraud'].mean() * 100
     fraud_by_category = fraud_by_category.sort_values(ascending=False)
     
     sns.barplot(x=fraud_by_category.index, y=fraud_by_category.values, ax=axes[1, 0])
@@ -276,10 +261,10 @@ def plot_fraud_analysis(df):
     axes[1, 0].tick_params(axis='x', rotation=45)
     
     # Card present vs fraud
-    if 'cardPresent' in df_fraud.columns:
-        card_present_fraud = df_fraud.groupby('cardPresent')['isFraud'].mean() * 100
+    if 'cardPresent' in df.columns:
+        card_present_fraud = df.groupby('cardPresent')['isFraud'].mean() * 100
         axes[1, 1].bar(['Card Not Present', 'Card Present'], 
-                       [card_present_fraud.get(False, 0), card_present_fraud.get(True, 0)])
+                      [card_present_fraud.get(False, 0), card_present_fraud.get(True, 0)])
         axes[1, 1].set_title('Fraud Rate by Card Present Status')
         axes[1, 1].set_xlabel('Card Present')
         axes[1, 1].set_ylabel('Fraud Rate (%)')
@@ -293,18 +278,17 @@ def plot_fraud_analysis(df):
     
     # Additional analysis: Fraud by transaction type
     print("\nFraud Rate by Transaction Type:")
-    fraud_by_type = df_fraud.groupby('transactionType')['isFraud'].agg(['count', 'sum', 'mean'])
+    fraud_by_type = df.groupby('transactionType')['isFraud'].agg(['count', 'sum', 'mean'])
     fraud_by_type['fraud_pct'] = fraud_by_type['mean'] * 100
     fraud_by_type = fraud_by_type.sort_values('fraud_pct', ascending=False)
-    # display(fraud_by_type)
     print(fraud_by_type)
     
     # Fraud by hour of day
-    if 'transactionDateTime' in df_fraud.columns:
-        df_fraud['txnHour'] = pd.to_datetime(df_fraud['transactionDateTime']).dt.hour
+    if 'transactionDateTime' in df.columns:
+        df['txnHour'] = pd.to_datetime(df['transactionDateTime']).dt.hour
         
         plt.figure(figsize=(14, 6))
-        fraud_by_hour = df_fraud.groupby('txnHour')['isFraud'].mean() * 100
+        fraud_by_hour = df.groupby('txnHour')['isFraud'].mean() * 100
         sns.lineplot(x=fraud_by_hour.index, y=fraud_by_hour.values)
         plt.title('Fraud Rate by Hour of Day')
         plt.xlabel('Hour of Day')
@@ -321,5 +305,3 @@ def plot_fraud_analysis(df):
     print("3. Card-not-present transactions generally have higher fraud rates")
     print("4. Certain hours of the day may show elevated fraud activity")
     print("5. Some transaction types have higher fraud rates than others")
-    
-    return df_fraud

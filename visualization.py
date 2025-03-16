@@ -8,11 +8,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime, timedelta
+import os
+from pathlib import Path
 
 # Set plotting styles
 sns.set(style="whitegrid")
 plt.rcParams['figure.figsize'] = (12, 8)
 plt.rcParams['font.size'] = 12
+
+# Create necessary directories
+def create_plot_directory():
+    """Create directory for saving plots"""
+    plot_dir = os.path.join('results', 'plots')
+    Path(plot_dir).mkdir(parents=True, exist_ok=True)
+    return plot_dir
 
 def plot_transaction_amounts(df):
     """
@@ -24,6 +33,9 @@ def plot_transaction_amounts(df):
     print("\n" + "="*80)
     print("TRANSACTION AMOUNT ANALYSIS")
     print("="*80)
+    
+    # Create plot directory
+    plot_dir = create_plot_directory()
     
     # Create a copy to avoid modifying the original DataFrame
     df_plot = df.copy()
@@ -76,7 +88,8 @@ def plot_transaction_amounts(df):
         axes[1, 1].text(i, v + 5, f'{v}', ha='center')
     
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join(plot_dir, 'transaction_amount_distribution.png'))
+    plt.close()
     
     # Additional analysis by merchant category
     print("\nTransaction Amount Statistics by Merchant Category:")
@@ -93,7 +106,8 @@ def plot_transaction_amounts(df):
     plt.ylabel('Transaction Amount ($)')
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join(plot_dir, 'transaction_amounts_by_category.png'))
+    plt.close()
     
     # Plot frequency of common transaction amounts
     plt.figure(figsize=(14, 6))
@@ -104,7 +118,8 @@ def plot_transaction_amounts(df):
     plt.ylabel('Frequency')
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join(plot_dir, 'common_transaction_amounts.png'))
+    plt.close()
     
     # Check for interesting patterns or anomalies
     print("\nObservations about transaction amount structure:")
@@ -123,6 +138,9 @@ def plot_transaction_time_patterns(df):
     Parameters:
     - df: DataFrame containing transaction data
     """
+    # Create plot directory
+    plot_dir = create_plot_directory()
+    
     # Ensure transaction datetime is in correct format
     df_time = df.copy()
     if 'transactionDateTime' in df_time.columns:
@@ -172,7 +190,8 @@ def plot_transaction_time_patterns(df):
     axes[1, 1].set_ylabel('Number of Transactions')
     
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join(plot_dir, 'transaction_time_patterns.png'))
+    plt.close()
     
     # Heatmap of transactions by hour and day of week
     pivot_table = pd.pivot_table(
@@ -192,7 +211,8 @@ def plot_transaction_time_patterns(df):
     plt.xlabel('Hour of Day')
     plt.ylabel('Day of Week')
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join(plot_dir, 'transaction_heatmap.png'))
+    plt.close()
     
     print("\nObservations about transaction time patterns:")
     print("1. Transaction volume peaks at certain hours of the day")
@@ -209,6 +229,9 @@ def plot_fraud_analysis(df):
     Parameters:
     - df: DataFrame containing transaction data with fraud indicators
     """
+    # Create plot directory
+    plot_dir = create_plot_directory()
+    
     # Check if fraud column exists
     if 'isFraud' not in df.columns:
         print("Error: isFraud column not found in the data")
@@ -263,7 +286,8 @@ def plot_fraud_analysis(df):
             axes[1, 1].text(i, v + 0.1, f'{v:.2f}%', ha='center')
     
     plt.tight_layout()
-    plt.show()
+    plt.savefig(os.path.join(plot_dir, 'fraud_analysis.png'))
+    plt.close()
     
     # Additional analysis: Fraud by transaction type
     print("\nFraud Rate by Transaction Type:")
@@ -286,7 +310,8 @@ def plot_fraud_analysis(df):
         plt.xticks(range(0, 24))
         plt.grid(True)
         plt.tight_layout()
-        plt.show()
+        plt.savefig(os.path.join(plot_dir, 'fraud_rate_by_hour.png'))
+        plt.close()
     
     print("\nObservations about fraud patterns:")
     print("1. Fraud rates differ significantly by merchant category")

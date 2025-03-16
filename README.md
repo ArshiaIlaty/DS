@@ -62,6 +62,7 @@ Ensure all provided files are placed in the same directory for seamless executio
 | `visualization.py`  | Generates visualizations and insights |
 | `data_wrangling.py` | Handles duplicates and recurring transactions |
 | `modeling.py`       | Builds, trains, and evaluates machine learning models |
+| `main.py`           | Main execution script that orchestrates the workflow |
 
 ---
 
@@ -70,6 +71,34 @@ Ensure all provided files are placed in the same directory for seamless executio
 2. Visualize the data with `visualization.py` to gain insights.
 3. Preprocess and clean your dataset using `data_wrangling.py`.
 4. Train and evaluate models with `modeling.py`.
+
+---
+## Running the Pipeline
+### Command Line Usage
+
+```bash
+# Run the complete pipeline
+python main.py --data transactions.txt --output-dir results
+
+# To skip plots and use cached results
+python main.py --data transactions.txt --skip-plots --output-dir results
+
+# To run the code on a subsample of the dataset
+python main.py --data transactions.txt --sample-size 100000
+```
+
+### Module-specific Commands
+
+```bash
+# Analyze duplicate transactions
+python data_wrangling.py --data transactions.txt
+
+# Generate visualizations only
+python visualization.py --data transactions.pkl
+
+# Run model training with specific sampling
+python modeling.py --data transactions.pkl --sampling smote
+```
 
 ---
 If you wish to convert the notebook to HTML format, you can run the following command:

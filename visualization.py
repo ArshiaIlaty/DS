@@ -55,8 +55,10 @@ def plot_transaction_amounts(df):
     axes[0, 0].set_xlabel('Transaction Amount ($)')
     axes[0, 0].set_ylabel('Frequency')
     
-    # Log-scale histogram for better visibility of the distribution
-    sns.histplot(df_plot['transactionAmount'], bins=50, kde=True, log_scale=True, ax=axes[0, 1])
+
+    # Log-scale histogram - filter out zeros first to avoid log(0) issues
+    non_zero_amounts = df_plot[df_plot['transactionAmount'] > 0]['transactionAmount']
+    sns.histplot(non_zero_amounts, bins=50, kde=True, log_scale=True, ax=axes[0, 1])
     axes[0, 1].set_title('Transaction Amount Distribution (Log Scale)')
     axes[0, 1].set_xlabel('Transaction Amount ($)')
     axes[0, 1].set_ylabel('Frequency')

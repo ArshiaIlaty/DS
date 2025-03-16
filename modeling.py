@@ -203,84 +203,97 @@ def create_baseline_model(df, model_type='logistic', cache_dir='models'):
     - Dictionary of results
     """
     print("\n===== BASELINE MODEL EVALUATION =====")
-    print("Creating baseline model with minimal preprocessing")
+    print(f"Creating baseline {model_type} model with minimal preprocessing")
     
     # Check for cached results
     cache_file = os.path.join(cache_dir, f'baseline_{model_type}_results.pkl')
     if os.path.exists(cache_file):
         return load_from_pickle(cache_file)
     
-    # Create a copy of the data
-    df_copy = df.copy()
-    
-    # Basic preprocessing - handle NA values
-    numeric_cols = df_copy.select_dtypes(include=['number']).columns
-    categorical_cols = df_copy.select_dtypes(include=['object', 'category']).columns
-    
-    # Fill missing values
-    for col in numeric_cols:
-        df_copy[col] = df_copy[col].fillna(df_copy[col].median())
-    
-    for col in categorical_cols:
-        df_copy[col] = df_copy[col].fillna(df_copy[col].mode().iloc[0])
-    
-    # Prepare features and target
-    X = df_copy.drop('isFraud', axis=1)
-    y = df_copy['isFraud']
-    
-    # Convert categorical columns to string to avoid errors
-    for col in X.select_dtypes(include=['category']).columns:
-        X[col] = X[col].astype(str)
-    
-    # Drop columns that might cause issues
-    cols_to_drop = ['transactionDateTime', 'merchantName', 'accountNumber', 'customerId']
-    X = X.drop([col for col in cols_to_drop if col in X.columns], axis=1)
-    
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
-    
-    # Create pipeline with basic preprocessing
-    numeric_transformer = Pipeline(steps=[
-        ('scaler', StandardScaler())
-    ])
-    
-    categorical_transformer = Pipeline(steps=[
-        ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
-    ])
-    
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ('num', numeric_transformer, X.select_dtypes(include=['number']).columns),
-            ('cat', categorical_transformer, X.select_dtypes(include=['object', 'category']).columns)
-        ]
-    )
-    
-    # Choose classifier based on model_type
-    if model_type == 'logistic':
-        classifier = LogisticRegression(random_state=42, class_weight='balanced', max_iter=1000)
-    elif model_type == 'rf':
-        classifier = RandomForestClassifier(random_state=42, class_weight='balanced')
-    elif model_type == 'xgb':
-        classifier = xgb.XGBClassifier(random_state=42, scale_pos_weight=10, eval_metric='logloss')
-    else:
-        raise ValueError("model_type must be one of 'logistic', 'rf', or 'xgb'")
-    
-    # Create pipeline
-    pipeline = Pipeline([
-        ('preprocessor', preprocessor),
-        ('classifier', classifier)
-    ])
-    
-    # Train model
-    start_time = time.time()
-    pipeline.fit(X_train, y_train)
-    training_time = time.time() - start_time
-    
-    print(f"Model training time: {training_time:.2f} seconds")
+    # Create a progress bar for the baseline model creation
+    with tqdm(total=5, desc=f"Creating {model_type} baseline model", position=1) as pbar:
+        # Create a copy of the data
+        df_copy = df.copy()
+        
+        # Basic preprocessing - handle NA values
+        pbar.set_description(f"Preprocessing data for {model_type}")
+        numeric_cols = df_copy.select_dtypes(include=['number']).columns
+        categorical_cols = df_copy.select_dtypes(include=['object', 'category']).columns
+        
+        # Fill missing values
+        for col in numeric_cols:
+            df_copy[col] = df_copy[col].fillna(df_copy[col].median())
+        
+        for col in categorical_cols:
+            df_copy[col] = df_copy[col].fillna(df_copy[col].mode().iloc[0])
+        pbar.update(1)
+        
+        # Prepare features and target
+        pbar.set_description(f"Preparing features for {model_type}")
+        X = df_copy.drop('isFraud', axis=1)
+        y = df_copy['isFraud']
+        
+        # Convert categorical columns to string to avoid errors
+        for col in X.select_dtypes(include=['category']).columns:
+            X[col] = X[col].astype(str)
+        
+        # Drop columns that might cause issues
+        cols_to_drop = ['transactionDateTime', 'merchantName', 'accountNumber', 'customerId']
+        X = X.drop([col for col in cols_to_drop if col in X.columns], axis=1)
+        pbar.update(1)
+        
+        # Train-test split
+        pbar.set_description(f"Splitting data for {model_type}")
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
+        pbar.update(1)
+        
+        # Create pipeline with basic preprocessing
+        pbar.set_description(f"Creating pipeline for {model_type}")
+        numeric_transformer = Pipeline(steps=[
+            ('scaler', StandardScaler())
+        ])
+        
+        categorical_transformer = Pipeline(steps=[
+            ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
+        ])
+        
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('num', numeric_transformer, X.select_dtypes(include=['number']).columns),
+                ('cat', categorical_transformer, X.select_dtypes(include=['object', 'category']).columns)
+            ]
+        )
+        
+        # Choose classifier based on model_type
+        if model_type == 'logistic':
+            classifier = LogisticRegression(random_state=42, class_weight='balanced', max_iter=1000)
+        elif model_type == 'rf':
+            classifier = RandomForestClassifier(random_state=42, class_weight='balanced')
+        elif model_type == 'xgb':
+            classifier = xgb.XGBClassifier(random_state=42, scale_pos_weight=10, eval_metric='logloss')
+        else:
+            raise ValueError("model_type must be one of 'logistic', 'rf', or 'xgb'")
+        
+        # Create pipeline
+        pipeline = Pipeline([
+            ('preprocessor', preprocessor),
+            ('classifier', classifier)
+        ])
+        pbar.update(1)
+        
+        # Train model
+        pbar.set_description(f"Training {model_type} model")
+        start_time = time.time()
+        pipeline.fit(X_train, y_train)
+        training_time = time.time() - start_time
+        
+        print(f"Model training time: {training_time:.2f} seconds")
+        pbar.update(1)
     
     # Evaluate model
+    print(f"Evaluating {model_type} model...")
     eval_results = evaluate_classifier(pipeline, X_test, y_test, f"Baseline {model_type}")
     
     # Save results
@@ -690,98 +703,106 @@ def train_models_with_sampling(X, y, sampling_methods=None, models=None, cache_d
     # Results dictionary
     results = {}
     
+    # Calculate total number of model-sampling combinations
+    total_combinations = len(sampling_methods) * len(models)
+    
     # Train models with different sampling techniques
-    for sampling_name, sampler in sampling_methods:
-        print(f"\n----- Sampling Method: {sampling_name} -----")
-        
-        # Apply preprocessing and sampling to check class balance
-        if sampler is not None:
-            # Apply preprocessing
-            X_train_transformed = preprocessor.fit_transform(X_train)
+    with tqdm(total=total_combinations, desc="Training Models", position=1) as pbar:
+        for sampling_name, sampler in sampling_methods:
+            print(f"\n----- Sampling Method: {sampling_name} -----")
             
-            # Apply sampling
-            X_resampled, y_resampled = sampler.fit_resample(X_train_transformed, y_train)
-            
-            # Print class balance after sampling
-            fraud_count_after = y_resampled.sum()
-            total_count_after = len(y_resampled)
-            fraud_rate_after = fraud_count_after / total_count_after * 100
-            
-            print(f"\nClass balance after {sampling_name} sampling:")
-            print(f"- Non-fraud: {total_count_after - fraud_count_after} ({100 - fraud_rate_after:.2f}%)")
-            print(f"- Fraud: {fraud_count_after} ({fraud_rate_after:.2f}%)")
-            print(f"- Fraud to non-fraud ratio: 1:{(total_count_after - fraud_count_after) / fraud_count_after if fraud_count_after > 0 else 'N/A':.2f}")
-            print(f"- Total samples: {total_count_after} (vs. original {total_count})")
-        else:
-            print("\nNo sampling applied, using original class distribution")
-        
-        for model_name, model in models:
-            # Create cache file name
-            cache_file = os.path.join(cache_dir, f'{model_name}_{sampling_name}_results.pkl')
-            
-            # Check for cached results
-            if os.path.exists(cache_file):
-                results[f'{model_name}_{sampling_name}'] = load_from_pickle(cache_file)
-                continue
-            
-            print(f"\nTraining {model_name} with {sampling_name} sampling...")
-            
-            # Create pipeline
-            if sampler is None:
-                # No sampling
-                pipeline = Pipeline([
-                    ('preprocessor', preprocessor),
-                    ('classifier', model)
-                ])
-            else:
-                # With sampling
-                pipeline = ImbPipeline([
-                    ('preprocessor', preprocessor),
-                    ('sampler', sampler),
-                    ('classifier', model)
-                ])
-            
-            # Train model
-            start_time = time.time()
-            pipeline.fit(X_train, y_train)
-            training_time = time.time() - start_time
-            
-            print(f"Training time: {training_time:.2f} seconds")
-            
-            # Evaluate model
-            eval_results = evaluate_classifier(
-                pipeline, X_test, y_test, f"{model_name.capitalize()} with {sampling_name}"
-            )
-            
-            # Save results
-            model_results = {
-                'model': pipeline,
-                'evaluation': eval_results,
-                'training_time': training_time,
-                'X_train_shape': X_train.shape,
-                'X_test_shape': X_test.shape,
-                'sampling_method': sampling_name,
-                'model_type': model_name
-            }
-            
-            # Add class balance information to results
+            # Apply preprocessing and sampling to check class balance
             if sampler is not None:
-                model_results['class_balance'] = {
-                    'original_fraud_rate': fraud_rate,
-                    'sampled_fraud_rate': fraud_rate_after,
-                    'original_samples': total_count,
-                    'sampled_samples': total_count_after
-                }
+                # Apply preprocessing
+                X_train_transformed = preprocessor.fit_transform(X_train)
+                
+                # Apply sampling
+                X_resampled, y_resampled = sampler.fit_resample(X_train_transformed, y_train)
+                
+                # Print class balance after sampling
+                fraud_count_after = y_resampled.sum()
+                total_count_after = len(y_resampled)
+                fraud_rate_after = fraud_count_after / total_count_after * 100
+                
+                print(f"\nClass balance after {sampling_name} sampling:")
+                print(f"- Non-fraud: {total_count_after - fraud_count_after} ({100 - fraud_rate_after:.2f}%)")
+                print(f"- Fraud: {fraud_count_after} ({fraud_rate_after:.2f}%)")
+                print(f"- Fraud to non-fraud ratio: 1:{(total_count_after - fraud_count_after) / fraud_count_after if fraud_count_after > 0 else 'N/A':.2f}")
+                print(f"- Total samples: {total_count_after} (vs. original {total_count})")
             else:
-                model_results['class_balance'] = {
-                    'original_fraud_rate': fraud_rate,
-                    'sampled_fraud_rate': fraud_rate,
-                    'original_samples': total_count,
-                    'sampled_samples': total_count
-                }
+                print("\nNo sampling applied, using original class distribution")
             
-            results[f'{model_name}_{sampling_name}'] = model_results
-            save_to_pickle(model_results, cache_file)
+            for model_name, model in models:
+                pbar.set_description(f"Training {model_name} with {sampling_name}")
+                
+                # Create cache file name
+                cache_file = os.path.join(cache_dir, f'{model_name}_{sampling_name}_results.pkl')
+                
+                # Check for cached results
+                if os.path.exists(cache_file):
+                    results[f'{model_name}_{sampling_name}'] = load_from_pickle(cache_file)
+                    pbar.update(1)
+                    continue
+                
+                print(f"\nTraining {model_name} with {sampling_name} sampling...")
+                
+                # Create pipeline
+                if sampler is None:
+                    # No sampling
+                    pipeline = Pipeline([
+                        ('preprocessor', preprocessor),
+                        ('classifier', model)
+                    ])
+                else:
+                    # With sampling
+                    pipeline = ImbPipeline([
+                        ('preprocessor', preprocessor),
+                        ('sampler', sampler),
+                        ('classifier', model)
+                    ])
+                
+                # Train model
+                start_time = time.time()
+                pipeline.fit(X_train, y_train)
+                training_time = time.time() - start_time
+                
+                print(f"Training time: {training_time:.2f} seconds")
+                
+                # Evaluate model
+                eval_results = evaluate_classifier(
+                    pipeline, X_test, y_test, f"{model_name.capitalize()} with {sampling_name}"
+                )
+                
+                # Save results
+                model_results = {
+                    'model': pipeline,
+                    'evaluation': eval_results,
+                    'training_time': training_time,
+                    'X_train_shape': X_train.shape,
+                    'X_test_shape': X_test.shape,
+                    'sampling_method': sampling_name,
+                    'model_type': model_name
+                }
+                
+                # Add class balance information to results
+                if sampler is not None:
+                    model_results['class_balance'] = {
+                        'original_fraud_rate': fraud_rate,
+                        'sampled_fraud_rate': fraud_rate_after,
+                        'original_samples': total_count,
+                        'sampled_samples': total_count_after
+                    }
+                else:
+                    model_results['class_balance'] = {
+                        'original_fraud_rate': fraud_rate,
+                        'sampled_fraud_rate': fraud_rate,
+                        'original_samples': total_count,
+                        'sampled_samples': total_count
+                    }
+                
+                results[f'{model_name}_{sampling_name}'] = model_results
+                save_to_pickle(model_results, cache_file)
+                pbar.update(1)
     
     # Compare results
     comparison_df = pd.DataFrame({
@@ -976,15 +997,32 @@ def optimize_hyperparameters(X, y, model_type='rf', sampling='smote', cache_dir=
     else:
         X_train_sample, y_train_sample = X_train, y_train
     
+    # Calculate total number of parameter combinations
+    total_param_combinations = 1
+    for param_values in param_grid.values():
+        total_param_combinations *= len(param_values)
+    
     # Perform grid search
-    print("Starting grid search...")
+    print(f"Starting grid search with {total_param_combinations} parameter combinations...")
+    
+    # Create a progress bar for the grid search
+    pbar = tqdm(total=total_param_combinations, desc="Grid Search Progress", position=1)
+    
+    # Use verbose=1 to get some output from GridSearchCV
     grid_search = GridSearchCV(
         pipeline, param_grid=param_grid, cv=cv, scoring='f1',
-        n_jobs=-1, verbose=1, return_train_score=True
+        n_jobs=-1, verbose=0, return_train_score=True
     )
     
     start_time = time.time()
+    
+    # Fit the grid search
     grid_search.fit(X_train_sample, y_train_sample)
+    
+    # Close the progress bar
+    pbar.update(total_param_combinations)  # Ensure it reaches 100%
+    pbar.close()
+    
     grid_search_time = time.time() - start_time
     
     print(f"Grid search time: {grid_search_time:.2f} seconds")
@@ -996,7 +1034,9 @@ def optimize_hyperparameters(X, y, model_type='rf', sampling='smote', cache_dir=
     best_model = grid_search.best_estimator_
     
     start_time = time.time()
-    best_model.fit(X_train, y_train)
+    with tqdm(total=1, desc="Training Final Model", position=1) as pbar:
+        best_model.fit(X_train, y_train)
+        pbar.update(1)
     training_time = time.time() - start_time
     
     print(f"Final model training time: {training_time:.2f} seconds")
@@ -1163,88 +1203,127 @@ def comprehensive_evaluation(df, output_dir='fraud_detection_results', use_cache
     # Results dictionary
     all_results = {}
     
-    # 1. Baseline models
-    print("\nStep 1: Evaluating baseline models")
-    for model_type in ['logistic', 'rf', 'xgb']:
-        results = create_baseline_model(df, model_type, cache_dir=output_dir)
-        all_results[f'baseline_{model_type}'] = results
-    
-    # 2. Feature engineering
-    print("\nStep 2: Performing feature engineering")
-    df_engineered = feature_engineering(df, cache_dir=output_dir)
-    
-    # 3. Feature selection
-    print("\nStep 3: Performing feature selection")
-    if 'isFraud' in df_engineered.columns:
-        X = df_engineered.drop('isFraud', axis=1)
-        y = df_engineered['isFraud']
+    # Create a progress bar for the overall process
+    total_steps = 6  # Total number of major steps in the evaluation
+    with tqdm(total=total_steps, desc="Comprehensive Evaluation Progress", position=0) as pbar:
+        # 1. Baseline models
+        pbar.set_description("Step 1: Evaluating baseline models")
+        print("\nStep 1: Evaluating baseline models")
+        for model_type in ['logistic', 'rf', 'xgb']:
+            results = create_baseline_model(df, model_type, cache_dir=output_dir)
+            all_results[f'baseline_{model_type}'] = results
+        pbar.update(1)
         
-        selected_features = {}
-        for method in ['forest', 'mutual_info']:
-            try:
-                features = feature_selection(X, y, method=method, k=20, cache_dir=output_dir)
-                selected_features[method] = features
-            except Exception as e:
-                print(f"Warning: Feature selection with {method} failed: {str(e)}")
-                selected_features[method] = []
+        # 2. Feature engineering
+        pbar.set_description("Step 2: Performing feature engineering")
+        print("\nStep 2: Performing feature engineering")
+        df_engineered = feature_engineering(df, cache_dir=output_dir)
+        pbar.update(1)
         
-        # Initialize X_selected to use all features by default
-        X_selected = X
-        
-        # Keep only selected features that actually exist in the dataframe
-        union_features = []
-        if len(selected_features.get('forest', [])) > 0 or len(selected_features.get('mutual_info', [])) > 0:
-            all_features = list(set(selected_features.get('forest', []) + selected_features.get('mutual_info', [])))
-            # Filter to only include features that exist in X
-            union_features = [f for f in all_features if f in X.columns]
-            print(f"Selected {len(union_features)} valid features out of {len(all_features)} total selected features")
+        # 3. Feature selection
+        pbar.set_description("Step 3: Performing feature selection")
+        print("\nStep 3: Performing feature selection")
+        if 'isFraud' in df_engineered.columns:
+            X = df_engineered.drop('isFraud', axis=1)
+            y = df_engineered['isFraud']
             
-            if len(union_features) > 0:
-                # Only use selected features if we have valid ones
-                X_selected = X[union_features]
-                print(f"Using {len(union_features)} selected features for modeling")
-            else:
-                print("Warning: No valid features were selected. Using all features.")
-    else:
-        print("Error: 'isFraud' column not found in engineered data")
-        # Create dummy variables to avoid errors
-        X = df_engineered
-        y = pd.Series(0, index=df_engineered.index)
-        X_selected = X
-    
-    # 4. Train models with sampling techniques
-    print("\nStep 4: Training models with sampling techniques")
-    sampling_results = train_models_with_sampling(
-        X_selected, y,
-        sampling_methods=[
+            selected_features = {}
+            for method in ['forest', 'mutual_info']:
+                try:
+                    features = feature_selection(X, y, method=method, k=20, cache_dir=output_dir)
+                    selected_features[method] = features
+                except Exception as e:
+                    print(f"Warning: Feature selection with {method} failed: {str(e)}")
+                    selected_features[method] = []
+            
+            # Initialize X_selected to use all features by default
+            X_selected = X
+            
+            # Keep only selected features that actually exist in the dataframe
+            union_features = []
+            if len(selected_features.get('forest', [])) > 0 or len(selected_features.get('mutual_info', [])) > 0:
+                all_features = list(set(selected_features.get('forest', []) + selected_features.get('mutual_info', [])))
+                # Filter to only include features that exist in X
+                union_features = [f for f in all_features if f in X.columns]
+                print(f"Selected {len(union_features)} valid features out of {len(all_features)} total selected features")
+                
+                if len(union_features) > 0:
+                    # Only use selected features if we have valid ones
+                    X_selected = X[union_features]
+                    print(f"Using {len(union_features)} selected features for modeling")
+                else:
+                    print("Warning: No valid features were selected. Using all features.")
+        else:
+            print("Error: 'isFraud' column not found in engineered data")
+            # Create dummy variables to avoid errors
+            X = df_engineered
+            y = pd.Series(0, index=df_engineered.index)
+            X_selected = X
+        pbar.update(1)
+        
+        # 4. Train models with sampling techniques
+        pbar.set_description("Step 4: Training models with sampling techniques")
+        print("\nStep 4: Training models with sampling techniques")
+        sampling_methods = [
             ('none', None),
             ('smote', SMOTE(random_state=42)),
             ('random_under', RandomUnderSampler(random_state=42)),
             ('smote_tomek', SMOTETomek(random_state=42))
-        ],
-        models=[
+        ]
+        models = [
             ('logistic', LogisticRegression(max_iter=1000, random_state=42, class_weight='balanced')),
             ('rf', RandomForestClassifier(random_state=42, class_weight='balanced')),
             ('xgb', xgb.XGBClassifier(random_state=42, scale_pos_weight=10, eval_metric='logloss'))
-        ],
-        cache_dir=output_dir
-    )
-    all_results.update(sampling_results)
-    
-    # 5. Hyperparameter optimization for the best model (RF with SMOTE)
-    print("\nStep 5: Optimizing hyperparameters")
-    best_model_type = 'rf'
-    best_sampling = 'smote'
-    
-    optimized_results = optimize_hyperparameters(
-        X_selected, y, model_type=best_model_type, sampling=best_sampling, cache_dir=output_dir
-    )
-    all_results['optimized_model'] = optimized_results
-    
-    # 6. Compare all models
-    print("\nStep 6: Comprehensive model comparison")
-    comparison_df = compare_all_models(all_results)
-    comparison_df.to_csv(os.path.join(output_dir, 'model_comparison.csv'), index=False)
+        ]
+        
+        # Create a nested progress bar for model training
+        total_model_combinations = len(sampling_methods) * len(models)
+        with tqdm(total=total_model_combinations, desc="Training Models", position=1, leave=False) as model_pbar:
+            # Train models with different sampling techniques
+            sampling_results = {}
+            for sampling_name, sampler in sampling_methods:
+                for model_name, model in models:
+                    model_pbar.set_description(f"Training {model_name} with {sampling_name}")
+                    # Create cache file name
+                    cache_file = os.path.join(output_dir, f'{model_name}_{sampling_name}_results.pkl')
+                    
+                    # Check for cached results
+                    if os.path.exists(cache_file) and use_cache and not force_recalculate:
+                        sampling_results[f'{model_name}_{sampling_name}'] = load_from_pickle(cache_file)
+                    else:
+                        # Train model and add to results
+                        # This is handled by train_models_with_sampling but we're tracking progress here
+                        pass
+                    model_pbar.update(1)
+            
+            # Now call the actual function
+            sampling_results = train_models_with_sampling(
+                X_selected, y,
+                sampling_methods=sampling_methods,
+                models=models,
+                cache_dir=output_dir
+            )
+            all_results.update(sampling_results)
+        pbar.update(1)
+        
+        # 5. Hyperparameter optimization for the best model
+        pbar.set_description("Step 5: Optimizing hyperparameters")
+        print("\nStep 5: Optimizing hyperparameters")
+        best_model_type = 'rf'
+        best_sampling = 'smote'
+        
+        optimized_results = optimize_hyperparameters(
+            X_selected, y, model_type=best_model_type, sampling=best_sampling, cache_dir=output_dir
+        )
+        all_results['optimized_model'] = optimized_results
+        pbar.update(1)
+        
+        # 6. Compare all models
+        pbar.set_description("Step 6: Comprehensive model comparison")
+        print("\nStep 6: Comprehensive model comparison")
+        comparison_df = compare_all_models(all_results)
+        comparison_df.to_csv(os.path.join(output_dir, 'model_comparison.csv'), index=False)
+        pbar.update(1)
     
     # Save comprehensive results
     print(f"\nSaving comprehensive evaluation results to {cache_file}")
@@ -1287,61 +1366,72 @@ def run_fraud_detection_pipeline(data_path, sample_size=None, output_dir='fraud_
         except Exception as e:
             print(f"Error loading cached pipeline results: {str(e)}. Recomputing...")
     
-    # 1. Load data
-    print("\nStep 1: Loading data")
-    import pandas as pd
-    import json
-    
-    try:
-        # Load data
-        with open(data_path, 'r') as f:
-            lines = f.readlines()
+    # Create a progress bar for the overall pipeline
+    total_steps = 4  # Total number of major steps in the pipeline
+    with tqdm(total=total_steps, desc="Fraud Detection Pipeline", position=0) as pbar:
+        # 1. Load data
+        pbar.set_description("Step 1: Loading data")
+        print("\nStep 1: Loading data")
+        import pandas as pd
+        import json
         
-        # Parse JSON
-        data = []
-        for line in tqdm(lines, desc="Parsing JSON"):
-            if line.strip():
-                try:
-                    data.append(json.loads(line))
-                except json.JSONDecodeError:
-                    print(f"Error parsing line: {line[:100]}...")
+        try:
+            # Load data
+            with open(data_path, 'r') as f:
+                lines = f.readlines()
+            
+            # Parse JSON
+            data = []
+            for line in tqdm(lines, desc="Parsing JSON", position=1, leave=False):
+                if line.strip():
+                    try:
+                        data.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        print(f"Error parsing line: {line[:100]}...")
+            
+            # Convert to DataFrame
+            df = pd.DataFrame(data)
+            
+            # Sample if needed
+            if sample_size and len(df) > sample_size:
+                df = df.sample(sample_size, random_state=42)
+                print(f"Sampled {len(df)} records")
+        except Exception as e:
+            print(f"Error loading data: {e}")
+            return None
+        pbar.update(1)
         
-        # Convert to DataFrame
-        df = pd.DataFrame(data)
+        # 2. Basic data exploration
+        pbar.set_description("Step 2: Basic data exploration")
+        print("\nStep 2: Basic data exploration")
+        print(f"Data shape: {df.shape}")
+        print(f"Columns: {df.columns.tolist()}")
         
-        # Sample if needed
-        if sample_size and len(df) > sample_size:
-            df = df.sample(sample_size, random_state=42)
-            print(f"Sampled {len(df)} records")
-    except Exception as e:
-        print(f"Error loading data: {e}")
-        return None
-    
-    # 2. Basic data exploration
-    print("\nStep 2: Basic data exploration")
-    print(f"Data shape: {df.shape}")
-    print(f"Columns: {df.columns.tolist()}")
-    
-    # Check for fraud label
-    if 'isFraud' in df.columns:
-        fraud_count = df['isFraud'].sum()
-        total_count = len(df)
-        fraud_rate = fraud_count / total_count * 100
-        print(f"Fraud rate: {fraud_count} out of {total_count} ({fraud_rate:.2f}%)")
-    else:
-        print("Warning: 'isFraud' column not found in the data")
-    
-    # 3. Run comprehensive evaluation
-    print("\nStep 3: Running comprehensive evaluation")
-    results = comprehensive_evaluation(df, output_dir=output_dir, use_cache=use_cache, force_recalculate=force_recalculate)
-    
-    # 4. Save final model
-    print("\nStep 4: Saving final model")
-    if 'optimized_model' in results:
-        best_model = results['optimized_model']['model']
-        model_path = os.path.join(output_dir, 'final_model.pkl')
-        save_to_pickle(best_model, model_path)
-        print(f"Final model saved to {model_path}")
+        # Check for fraud label
+        if 'isFraud' in df.columns:
+            fraud_count = df['isFraud'].sum()
+            total_count = len(df)
+            fraud_rate = fraud_count / total_count * 100
+            print(f"Fraud rate: {fraud_count} out of {total_count} ({fraud_rate:.2f}%)")
+        else:
+            print("Warning: 'isFraud' column not found in the data")
+        pbar.update(1)
+        
+        # 3. Run comprehensive evaluation
+        pbar.set_description("Step 3: Running comprehensive evaluation")
+        print("\nStep 3: Running comprehensive evaluation")
+        results = comprehensive_evaluation(df, output_dir=output_dir, use_cache=use_cache, force_recalculate=force_recalculate)
+        pbar.update(1)
+        
+        # 4. Save final model
+        pbar.set_description("Step 4: Saving final model")
+        print("\nStep 4: Saving final model")
+        if 'optimized_model' in results:
+            best_model = results['optimized_model']['model']
+            model_path = os.path.join(output_dir, 'final_model.pkl')
+            save_to_pickle(best_model, model_path)
+            print(f"Final model saved to {model_path}")
+        pbar.update(1)
     
     # Save pipeline results
     with open(pipeline_cache_file, 'wb') as f:
